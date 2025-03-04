@@ -1,0 +1,28 @@
+basketball-bingo/
+├── assets/
+│   ├── css/
+│   │   ├── style.css         # Hauptstil mit Basketball-Thema
+│   │   ├── bingo.css         # Spezifische Stile für das Bingo-Spiel
+│   │   └── admin.css         # Stile für den Admin-Bereich
+│   ├── js/
+│   │   ├── bingo.js          # Verbesserte Spiellogik
+│   │   └── navigation.js     # Responsive Navigation
+│   ├── images/
+│   │   ├── basketball-texture.png
+│   │   └── court-bg.jpg
+│   └── sounds/               # Optionale Soundeffekte
+├── config/
+│   ├── config.php            # Konfigurationseinstellungen
+│   ├── db.php                # Datenbankverbindung 
+│   └── settings.php          # Einstellungsfunktionen
+├── includes/
+│   ├── header.php            # Moderner Header mit responsiver Navigation
+│   └── footer.php            # Footer mit Statistiken
+├── api/
+│   ├── fetch-bingo-fields.php  # Verbesserte Feldgenerierung
+│   └── update-scoreboard.php   # Punkteaktualisierung
+├── admin/                    # Modularer Admin-Bereich
+├── pages/
+│   ├── bingo.php             # Hauptspielbildschirm
+│   └── game-selection.php    # Verbesserte Spielauswahl
+└── index.php                 # Startseite
