@@ -9,22 +9,22 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Get settings from database
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../config/settings.php';
+// Load settings
+require_once __DIR__ . '/Settings.php';
+require_once __DIR__ . '/Auth.php';
 
 // Get theme settings
-$bg_color = getSetting($pdo, 'site_bg_color', '#f4f4f4');
-$text_color = getSetting($pdo, 'site_text_color', '#333333');
-$header_bg_color = getSetting($pdo, 'site_header_bg_color', '#333333');
-$link_color = getSetting($pdo, 'site_link_color', '#ffffff');
+$bg_color = Settings::get('site_bg_color', '#f4f4f4');
+$text_color = Settings::get('site_text_color', '#333333');
+$header_bg_color = Settings::get('site_header_bg_color', '#333333');
+$link_color = Settings::get('site_link_color', '#ffffff');
 
 // Get site version
-$site_version = getSetting($pdo, 'site_version', APP_VERSION);
+$site_version = Settings::get('site_version', APP_VERSION);
 
 // Check if user is logged in
-$isLoggedIn = isset($_SESSION['user']);
-$isAdmin = $isLoggedIn && isset($_SESSION['user']['is_admin']) && $_SESSION['user']['is_admin'] == 1;
+$isLoggedIn = Auth::isLoggedIn();
+$isAdmin = Auth::isAdmin();
 
 // Get current page for active menu highlighting
 $currentPage = basename($_SERVER['PHP_SELF']);

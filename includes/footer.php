@@ -4,32 +4,29 @@
  * Enhanced footer with statistics and debug information
  */
 
-// Get database connection if not already available
-if (!isset($pdo)) {
-    require_once __DIR__ . '/../config/db.php';
-    require_once __DIR__ . '/../config/settings.php';
-    $pdo = getDbConnection();
+// Load settings if not already loaded
+if (!class_exists('Settings')) {
+    require_once __DIR__ . '/Settings.php';
 }
 
 // Get site version
-$site_version = getSetting($pdo, 'site_version', APP_VERSION);
+$site_version = Settings::get('site_version', APP_VERSION);
 
 // Get global statistics
 try {
-    $stmt = $pdo->query("SELECT page_views, games_played FROM global_stats WHERE id = 1 LIMIT 1");
-    $globalStats = $stmt->fetch(PDO::FETCH_ASSOC);
+    $db = Database::getInstance();
+    $globalStats = $db->fetch("SELECT page_views, games_played FROM global_stats WHERE id = 1");
     
     // Update page views counter
-    $updateStmt = $pdo->prepare("UPDATE global_stats SET page_views = page_views + 1 WHERE id = 1");
-    $updateStmt->execute();
-} catch (PDOException $e) {
+    $db->execute("UPDATE global_stats SET page_views = page_views + 1 WHERE id = 1");
+} catch (Exception $e) {
     // Handle error silently
     error_log("Error fetching global stats: " . $e->getMessage());
     $globalStats = ['page_views' => '0', 'games_played' => '0'];
 }
 
 // Check if debug mode is enabled
-$debugMode = isDebugMode($pdo);
+$debugMode = Settings::isDebugMode();
 ?>
     </main>
     
@@ -70,8 +67,8 @@ $debugMode = isDebugMode($pdo);
     </footer>
     
     <!-- Scripts -->
-    <script src="/assets/js/navigation.js"></script>
-    <?php if ($currentPage === 'bingo.php'): ?>
+    <script src="/assets/js/core.js"></script>
+    <?php if (basename($_SERVER['PHP_SELF']) === 'bingo.php'): ?>
     <script src="/assets/js/bingo.js"></script>
     <?php endif; ?>
     
