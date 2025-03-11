@@ -7,29 +7,36 @@
 // Set page title - no need for page title in header
 $pageTitle = "Basketball Bingo";
 
-// Include header
-include_once __DIR__ . '/includes/header.php';
+// Include required classes
+require_once __DIR__ . '/includes/Database.php';
+require_once __DIR__ . '/includes/Settings.php';
+require_once __DIR__ . '/includes/Auth.php';
 
 // Get some game statistics
 try {
+    $db = Database::getInstance();
+    
     // Get global stats
-    $globalStats = $pdo->query("SELECT games_played, total_bingos FROM global_stats WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+    $globalStats = $db->fetch("SELECT games_played, total_bingos FROM global_stats WHERE id = 1");
     
     // Get upcoming games
-    $upcomingGames = $pdo->query("
+    $upcomingGames = $db->fetchAll("
         SELECT g.id, g.time, g.opponent, t.name AS team_name
         FROM games g
         JOIN teams t ON g.team_id = t.id
         WHERE g.time >= NOW()
         ORDER BY g.time ASC
         LIMIT 3
-    ")->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
+    ");
+} catch (Exception $e) {
     // Silently log errors
     error_log("Error fetching stats for homepage: " . $e->getMessage());
     $globalStats = ['games_played' => 0, 'total_bingos' => 0];
     $upcomingGames = [];
 }
+
+// Include header
+include_once __DIR__ . '/includes/header.php';
 ?>
 
 <div class="hero-section">
@@ -38,7 +45,7 @@ try {
         <p class="hero-tagline">Erlebe Basketball auf eine neue Art!</p>
         
         <div class="hero-cta">
-            <?php if (isset($_SESSION['user'])): ?>
+            <?php if (Auth::isLoggedIn()): ?>
                 <a href="/pages/game-selection.php" class="btn btn-primary btn-large">Spiel starten</a>
             <?php else: ?>
                 <a href="/pages/game-selection.php" class="btn btn-primary">Als Gast spielen</a>
@@ -145,189 +152,6 @@ try {
         <a href="https://crossoverpodcast.de" class="btn btn-outline" target="_blank">Zum CrossOver Podcast</a>
     </div>
 </div>
-
-<style>
-/* Additional page-specific styles */
-.hero-section {
-    background: linear-gradient(to right, var(--color-accent), #0c2461);
-    color: white;
-    padding: 4rem 2rem;
-    text-align: center;
-    border-radius: var(--border-radius-lg);
-    margin-bottom: 2rem;
-}
-
-.hero-title {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    color: white;
-}
-
-.hero-tagline {
-    font-size: 1.5rem;
-    margin-bottom: 2rem;
-    opacity: 0.9;
-}
-
-.hero-cta {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-}
-
-.features-section {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    margin: 3rem 0;
-}
-
-.feature-card {
-    background: white;
-    padding: 2rem;
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-sm);
-    text-align: center;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.feature-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-md);
-}
-
-.feature-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.upcoming-games-section {
-    margin: 3rem 0;
-}
-
-.games-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-    margin-top: 1.5rem;
-}
-
-.game-card {
-    background: white;
-    padding: 1.5rem;
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-sm);
-}
-
-.game-date {
-    font-weight: bold;
-    color: var(--color-accent);
-}
-
-.game-teams {
-    margin: 1rem 0;
-    font-size: 1.1rem;
-}
-
-.vs {
-    margin: 0.5rem 0;
-    font-size: 0.9rem;
-    opacity: 0.7;
-}
-
-.how-to-play-section {
-    margin: 4rem 0;
-    text-align: center;
-}
-
-.steps-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 2rem;
-    margin: 2rem 0;
-}
-
-.step {
-    position: relative;
-    padding: 2rem;
-    background: white;
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--shadow-sm);
-}
-
-.step-number {
-    position: absolute;
-    top: -20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 40px;
-    height: 40px;
-    background: var(--color-ball);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-
-.stats-section {
-    margin: 3rem 0;
-    text-align: center;
-}
-
-.stat-container {
-    display: flex;
-    justify-content: center;
-    gap: 4rem;
-}
-
-.stat-value {
-    font-size: 3rem;
-    font-weight: bold;
-    color: var(--color-accent);
-}
-
-.stat-label {
-    font-size: 1.2rem;
-    opacity: 0.8;
-}
-
-.community-section {
-    margin: 4rem 0;
-    text-align: center;
-    padding: 2rem;
-    background: linear-gradient(135deg, #f5f7fa, #e4e8f0);
-    border-radius: var(--border-radius-lg);
-}
-
-.cta-container {
-    margin-top: 2rem;
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-}
-
-@media (max-width: 768px) {
-    .hero-cta, .stat-container, .cta-container {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .hero-title {
-        font-size: 2.2rem;
-    }
-    
-    .hero-tagline {
-        font-size: 1.2rem;
-    }
-    
-    .stat-container {
-        gap: 2rem;
-    }
-}
-</style>
 
 <?php
 // Include footer

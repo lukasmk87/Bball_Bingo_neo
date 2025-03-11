@@ -5,19 +5,23 @@
  */
 session_start();
 
-// Include required files
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../config/settings.php';
+// Include required classes
+require_once __DIR__ . '/../includes/Database.php';
+require_once __DIR__ . '/../includes/Auth.php';
+require_once __DIR__ . '/../includes/Settings.php';
 
 // Set page title
 $pageTitle = "Spielauswahl";
 
 // Check if user is logged in
-$isLoggedIn = isset($_SESSION['user']);
+$isLoggedIn = Auth::isLoggedIn();
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!empty($_POST['club']) && !empty($_POST['team']) && !empty($_POST['game'])) {
+    // Verify CSRF token
+    if (!isset($_POST['csrf_token']) || !Auth::verifyCSRFToken($_POST['csrf_token'])) {
+        $errorMessage = "Ungültige Anfrage. Bitte versuchen Sie es erneut.";
+    } else if (!empty($_POST['club']) && !empty($_POST['team']) && !empty($_POST['game'])) {
         $_SESSION['club_id'] = $_POST['club'];
         $_SESSION['team_id'] = $_POST['team'];
         $_SESSION['game_id'] = $_POST['game'];
@@ -32,15 +36,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get clubs from database
 try {
-    $stmt = $pdo->query("SELECT id, name FROM clubs WHERE blocked = 0 ORDER BY name");
-    $clubs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $db = Database::getInstance();
+    $clubs = $db->fetchAll("SELECT id, name FROM clubs WHERE blocked = 0 ORDER BY name");
     $clubsCount = count($clubs);
-} catch (PDOException $e) {
+} catch (Exception $e) {
     error_log("Error fetching clubs: " . $e->getMessage());
     $clubs = [];
     $clubsCount = 0;
     $errorMessage = "Fehler beim Laden der Vereine.";
 }
+
+// Generate CSRF token
+$csrfToken = Auth::generateCSRFToken();
 
 // Include header
 include_once __DIR__ . '/../includes/header.php';
@@ -55,10 +62,13 @@ include_once __DIR__ . '/../includes/header.php';
     
     <?php if($clubsCount > 0): ?>
         <form method="post" action="game-selection.php" class="selection-form validate">
+            <!-- CSRF Protection -->
+            <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+            
             <div class="selection-step">
                 <h2>1. Verein auswählen</h2>
                 <div class="form-group">
-                    <select name="club" id="club" required class="form-control" onchange="fetchTeams(this.value)">
+                    <select name="club" id="club" required class="form-control" onchange="fetchTeams(this.value)" data-error-message="Bitte wählen Sie einen Verein">
                         <option value="">-- Verein auswählen --</option>
                         <?php foreach ($clubs as $club): ?>
                             <option value="<?php echo $club['id']; ?>"><?php echo htmlspecialchars($club['name']); ?></option>
@@ -70,7 +80,7 @@ include_once __DIR__ . '/../includes/header.php';
             <div class="selection-step">
                 <h2>2. Team auswählen</h2>
                 <div class="form-group">
-                    <select name="team" id="team" required class="form-control" onchange="fetchGames(this.value)" disabled>
+                    <select name="team" id="team" required class="form-control" onchange="fetchGames(this.value)" disabled data-error-message="Bitte wählen Sie ein Team">
                         <option value="">-- Team auswählen --</option>
                         <!-- Teams will be loaded dynamically -->
                     </select>
@@ -81,7 +91,7 @@ include_once __DIR__ . '/../includes/header.php';
             <div class="selection-step">
                 <h2>3. Spiel auswählen</h2>
                 <div class="form-group">
-                    <select name="game" id="game" required class="form-control" disabled>
+                    <select name="game" id="game" required class="form-control" disabled data-error-message="Bitte wählen Sie ein Spiel">
                         <option value="">-- Spiel auswählen --</option>
                         <!-- Games will be loaded dynamically -->
                     </select>
@@ -112,7 +122,7 @@ include_once __DIR__ . '/../includes/header.php';
             <h2>Keine Vereine gefunden</h2>
             <p>Momentan sind keine Vereine verfügbar. Bitte versuche es später erneut.</p>
             
-            <?php if(isset($_SESSION['user']) && isset($_SESSION['user']['is_admin']) && $_SESSION['user']['is_admin']): ?>
+            <?php if(Auth::isAdmin()): ?>
                 <a href="/admin/clubs.php" class="btn btn-secondary">Vereine verwalten</a>
             <?php endif; ?>
         </div>
@@ -142,11 +152,10 @@ function fetchTeams(clubId) {
     loadingIndicator.style.display = 'block';
     teamSelect.disabled = true;
     
-    // Fetch teams using Fetch API
-    fetch('/api/fetch-teams.php?club_id=' + clubId)
-        .then(response => response.text())
-        .then(html => {
-            teamSelect.innerHTML = html;
+    // Fetch teams using our centralized ajaxRequest function
+    ajaxRequest('/api/fetch-teams.php?club_id=' + clubId)
+        .then(response => {
+            teamSelect.innerHTML = response.data.options;
             teamSelect.disabled = false;
             loadingIndicator.style.display = 'none';
             
@@ -159,6 +168,7 @@ function fetchTeams(clubId) {
             console.error('Error loading teams:', error);
             teamSelect.innerHTML = '<option value="">Fehler beim Laden der Teams</option>';
             loadingIndicator.style.display = 'none';
+            showNotification('Fehler beim Laden der Teams', 'error');
         });
 }
 
@@ -181,25 +191,25 @@ function fetchGames(teamId) {
     loadingIndicator.style.display = 'block';
     gameSelect.disabled = true;
     
-    // Fetch games using Fetch API
-    fetch('/api/fetch-games.php?team_id=' + teamId)
-        .then(response => response.json())
-        .then(data => {
+    // Fetch games using our centralized ajaxRequest function
+    ajaxRequest('/api/fetch-games.php?team_id=' + teamId)
+        .then(response => {
             gameSelect.disabled = false;
             loadingIndicator.style.display = 'none';
             
-            if (data.status === 'success') {
-                gameSelect.innerHTML = data.options;
+            if (response.status === 'success') {
+                gameSelect.innerHTML = response.data.options;
                 
                 // Update info box
-                if (data.games_count === 0) {
+                if (response.data.games_count === 0) {
                     infoBox.innerHTML = '<p class="notice">Keine aktuellen Spiele gefunden.</p>';
                 } else {
-                    infoBox.innerHTML = `<p>${data.games_count} Spiel(e) gefunden.</p>`;
+                    infoBox.innerHTML = `<p>${response.data.games_count} Spiel(e) gefunden.</p>`;
                 }
             } else {
                 gameSelect.innerHTML = '<option value="">Fehler beim Laden der Spiele</option>';
                 infoBox.innerHTML = '<p class="error">Es ist ein Fehler aufgetreten.</p>';
+                showNotification(response.message, 'error');
             }
         })
         .catch(error => {
@@ -207,6 +217,7 @@ function fetchGames(teamId) {
             gameSelect.innerHTML = '<option value="">Fehler beim Laden der Spiele</option>';
             loadingIndicator.style.display = 'none';
             infoBox.innerHTML = '<p class="error">Verbindungsfehler beim Laden der Spiele.</p>';
+            showNotification('Verbindungsfehler beim Laden der Spiele', 'error');
         });
 }
 </script>

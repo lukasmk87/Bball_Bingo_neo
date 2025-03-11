@@ -1,27 +1,13 @@
 <?php
 /**
  * Basketball Bingo - Admin Header
+ * Header-Template für den Admin-Bereich
  */
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Verify admin access
-if (!isset($_SESSION['user']) || !isset($_SESSION['user']['is_admin']) || $_SESSION['user']['is_admin'] != 1) {
-    header("Location: ../login.php");
-    exit;
-}
-
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../config/settings.php';
-
-// Get debug mode status
-$debugMode = isDebugMode($pdo);
-
-// Get site version
-$siteVersion = getSetting($pdo, 'site_version', '1.0.0');
-
-// Get current page for active menu highlighting
+// Aktuelle Seite für Hervorhebung im Menü ermitteln
 $currentPage = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
@@ -87,4 +73,17 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <div class="content">
             <?php if ($debugMode): ?>
                 <div class="debug-indicator">Debug Mode</div>
-            <?php endif; ?>
+            <?php endif; ?> Administratorzugriff prüfen
+require_once __DIR__ . '/../includes/Auth.php';
+Auth::requireAdmin();
+
+require_once __DIR__ . '/../includes/Database.php';
+require_once __DIR__ . '/../includes/Settings.php';
+
+// Debug-Modus prüfen
+$debugMode = Settings::isDebugMode();
+
+// Version der Website abrufen
+$siteVersion = Settings::get('site_version', '1.0.0');
+
+//

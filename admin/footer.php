@@ -8,5 +8,13 @@
             </footer>
         </div>
     </div>
+    
+    <!-- Core JavaScript -->
+    <script src="../assets/js/core.js"></script>
+    
+    <!-- Admin-spezifische Scripts -->
+    <?php if (file_exists("js/{$currentPage}.js")): ?>
+    <script src="js/<?php echo $currentPage; ?>"></script>
+    <?php endif; ?>
 </body>
 </html>
